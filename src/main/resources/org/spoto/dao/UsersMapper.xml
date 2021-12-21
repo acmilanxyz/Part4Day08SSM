@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.spoto.dao.UsersMapper">
+
+    <!--
+    id：必须与接口的方法名一致；
+    parameterType：必须与接口方法的参数（带包名）保持一致；
+    resultType：必须与接口方法的返回值类型（带包名）保持一致
+    -->
+    <insert id="add" parameterType="org.spoto.model.Users">
+        INSERT INTO users (username, password, nickname)
+        VALUES (#{username}, #{password}, #{nickname})
+    </insert>
+
+    <update id="update">
+        UPDATE users
+        SET username = #{username},
+            password = #{password}
+        where id = #{id}
+    </update>
+
+    <delete id="delete">
+        DELETE
+        FROM users
+        WHERE id = #{id}
+    </delete>
+
+    <!--批量删除；collection为集合；item为每次循环出来的值-->
+    <delete id="deletes">
+        DELETE
+        FROM users
+        WHERE id IN (
+        <!--trim有四个参数：前缀加上，前缀去掉，后缀加上，后缀去掉；本例中使用后缀去掉for循环的最后一个逗号-->
+<!--        <trim suffixOverrides=",">-->
+<!--            <foreach collection="ids" item="id">-->
+<!--                #{id},-->
+<!--            </foreach>-->
+<!--        </trim>-->
+        <foreach collection="ids" item="id" separator=",">
+            #{id}
+        </foreach>
+        )
+    </delete>
+
+    <!--统计查询，用于计算分页，返回值类型是Integer类型-->
+    <select id="getListCount" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM users
+        <!--引入公用代码块-->
+        <include refid="usersWhere"></include>
+    </select>
+
+    <!--查询一定要写resultType或者resultMap，两者只能写一种-->
+    <select id="getList" resultMap="userResultMap">
+        SELECT * FROM users
+        <include refid="usersWhere"></include>
+    </select>
+
+    <!--
+    手动指定关系映射：id要求在xml文件中唯一；type表示最终要映射到的对象
+    多个查询可以共用一个resultMap
+    -->
+    <resultMap id="userResultMap" type="org.spoto.model.Users">
+        <!--column表示数据库字段，property表示要映射到的对象属性-->
+        <result column="user_info" property="userInfo"></result>
+    </resultMap>
+
+    <!--提取公用的代码部分-->
+    <sql id="usersWhere">
+        <where>
+            <if test="username != null and username !=''">
+                AND username LIKE CONCAT('%',#{username},'%')
+            </if>
+            <if test="password != null and password !=''">
+                AND password LIKE CONCAT('%',#{password},'%')
+            </if>
+            <if test="nickname != null and nickname !=''">
+                AND nickname LIKE CONCAT('%',#{nickname},'%')
+            </if>
+        </where>
+    </sql>
+
+    <!--联表查询-->
+    <select id="getUsersAndMoney" resultMap="getUsersAndMoneyResultMap">
+        SELECT t1.*, t2.id money_id, t2.sum
+        FROM users t1
+                 INNER JOIN money t2 ON t1.id = t2.user_id
+    </select>
+    <!--设置联表查询的对象关系映射-->
+    <resultMap id="getUsersAndMoneyResultMap" type="org.spoto.dto.UsersDto">
+        <!--数据库查询语句中的别名money_id要映射到对象Money的id属性-->
+        <result column="money_id" property="money.id"></result>
+        <result column="sum" property="money.sum"></result>
+        <!--手动配置的关系映射会大于默认的关系映射，会覆盖掉user表的id字段与Dto对象的id属性的映射-->
+        <result column="id" property="money.userId"></result>
+        <!--可以再次手动配置映射，不然前端Json空指针异常会报错-->
+        <result column="id" property="id"></result>
+    </resultMap>
+</mapper>

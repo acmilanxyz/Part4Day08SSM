@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <title>用户列表</title>
+    <link rel="stylesheet" href="plugins/bootstrap/css/bootstrap.min.css">
+</head>
+<body>
+<div class="userDiv">
+
+    <!--    模态框-->
+    <div class="modal fade" tabindex="-1" role="dialog" id="myModal">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                    <h4 class="modal-title">用户信息</h4>
+                </div>
+                <div class="modal-body">
+                    <form>
+                        <div class="form-group">
+                            <label for="id">用户ID</label>
+                            <input type="text" class="form-control" id="id" placeholder="ID" v-model="editUser.id"
+                                   readonly>
+                        </div>
+                        <div class="form-group">
+                            <label for="username">用户名</label>
+                            <input type="text" class="form-control" id="username" placeholder="用户名"
+                                   v-model="editUser.username">
+                        </div>
+                        <div class="form-group">
+                            <label for="password">密码</label>
+                            <input type="password" class="form-control" id="password" placeholder="密码"
+                                   v-model="editUser.password">
+                        </div>
+                        <div class="form-group">
+                            <label for="nickname">用户昵称</label>
+                            <input type="text" class="form-control" id="nickname" placeholder="昵称"
+                                   v-model="editUser.nickname">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" @click="hideModal()">关闭</button>
+                    <button type="button" class="btn btn-primary" @click="saveModal()">保存</button>
+                </div>
+            </div><!-- /.modal-content -->
+        </div><!-- /.modal-dialog -->
+    </div><!-- /.modal -->
+
+    <br/>
+    <label class="btn-default">姓名</label>
+    <input type="text" v-model="queryUser.username"/>
+    <label class="btn-default">密码</label>
+    <input type="text" v-model="queryUser.password"/>
+    <label class="btn-default">昵称</label>
+    <input type="text" v-model="queryUser.nickname"/>
+    <input type="button" class="btn btn-danger" value="查询" @click="getUsersList(1)"/>
+    <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#myModal">新增</button>
+    <button type="button" class="btn btn-primary" @click="selectAll()">
+        {{allSelect ? '取消' : '全选'}}
+    </button>
+    <button type="button" class="btn btn-primary" @click="delMore()">批量删除</button>
+    <table class="table table-hover">
+        <tr>
+            <td>选择</td>
+            <td>ID</td>
+            <td>用户名</td>
+            <td>密码</td>
+            <td>昵称</td>
+            <td>用户信息</td>
+            <td>操作</td>
+        </tr>
+        <tr v-for="user in list">
+            <td><input type="checkbox" v-bind:value="user.id" v-model="ids"></td>
+            <td>{{user.id}}</td>
+            <td>{{user.username}}</td>
+            <td>{{user.password}}</td>
+            <td>{{user.nickname}}</td>
+            <td>{{user.userInfo}}</td>
+            <td>
+                <a href="#" class="btn-group btn-group-xs active" role="group" @click="deleteU(user.id)">删除</a>
+                <a href="#" class="btn-group btn-group-xs active" role="group" @click="editU(user)">编辑</a>
+            </td>
+        </tr>
+    </table>
+    <div>
+        <nav aria-label="Page navigation">
+            <ul class="pagination">
+                <li>
+                    <a href="#" aria-label="上一页" v-on:click="upPage()">
+                        <span aria-hidden="true">上一页</span>
+                    </a>
+                </li>
+
+                <li v-for="pIndex in page.pageList"><a @click="getUsersList(pIndex)">{{pIndex}}</a></li>
+
+                <li>
+                    <a href="#" aria-label="下一页" @click="downPage()">
+                        <span aria-hidden="true">下一页</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+</div>
+
+<script src="plugins/jq/jquery-3.6.0.min.js"></script>
+<script src="plugins/bootstrap/js/bootstrap.min.js"></script>
+<script src="plugins/vue/vue.js"></script>
+<script>
+    var app = new Vue({
+        el: '.userDiv',
+        data: {
+            list: [],
+            //定义分页
+            page: {
+                nowPage: 1,
+                maxSize: 0,
+                pageList: []
+            },
+            queryUser: {
+                username: '',
+                password: '',
+                nickname: ''
+            },
+            editUser: {
+                id: 0,
+                username: '',
+                password: '',
+                nickname: ''
+            },
+            //定义数组，存放删除/批量删除的id
+            ids: [],
+            //全选标志
+            allSelect: false
+        },
+        methods: {
+            //全选或取消全选
+            selectAll: function (){
+                if(this.allSelect){
+                    //allSelect为true时，执行方法为取消全选：把ids置空
+                    this.ids = [];
+                }else {
+                    //allSelect为false时，执行方法为全选：把当前页面的id添加到ids里面
+                    for(var i = 0; i< this.list.length; i++){
+                        this.ids.push(this.list[i].id);
+                    }
+                }
+                //点完一次按钮后要变更下状态
+                this.allSelect = !this.allSelect;
+            },
+            downPage: function () {
+                if (this.page.nowPage < this.page.maxSize) {
+                    this.page.nowPage = this.page.nowPage + 1;
+                    this.getUsersList(this.page.nowPage);
+                }
+            },
+            upPage: function () {
+                if (this.page.nowPage > 1) {
+                    this.page.nowPage = this.page.nowPage - 1;
+                    this.getUsersList(this.page.nowPage);
+                }
+            },
+            //计算分页
+            runPage: function (max) {
+                this.page.maxSize = max;
+                this.page.pageList = [];
+                for (i = 1; i <= max; i++) {
+                    this.page.pageList.push(i);
+                }
+            },
+            getUsersList: function (indexPage) {
+                this.page.nowPage = indexPage;
+                $.ajax({
+                    url: '/user-list.ajax',
+                    type: 'POST',
+                    data: {
+                        username: app.queryUser.username,
+                        password: app.queryUser.password,
+                        nickname: app.queryUser.nickname,
+                        index: indexPage
+                    },
+                    dataType: 'JSON',
+                    success: function (resp) {
+                        app.list = resp.list;
+                        app.runPage(resp.maxSize);
+                    },
+                    err: function () {
+                        alert("系统错误，请联系管理员！");
+                    }
+                })
+            },
+            //打开模态框
+            showModal: function () {
+                $('#myModal').modal({
+                    backdrop: 'static',
+                    keyboard: false
+                });
+            },
+            //关闭模态框
+            hideModal: function () {
+                this.editUser.id = 0;
+                this.editUser.username = '';
+                this.editUser.password = '';
+                this.editUser.nickname = '';
+                $('#myModal').modal('hide');
+            },
+            //编辑
+            editU: function (user) {
+                this.editUser.id = user.id;
+                this.editUser.username = user.username;
+                this.editUser.password = user.password;
+                this.editUser.nickname = user.nickname;
+                this.showModal();
+            },
+            //保存
+            saveModal: function () {
+                $.ajax({
+                    url: '/user-save.ajax',
+                    type: 'POST',
+                    data: {
+                        id: app.editUser.id,
+                        username: app.editUser.username,
+                        password: app.editUser.password,
+                        nickname: app.editUser.nickname,
+                    },
+                    dataType: 'JSON',
+                    success: function (resp) {
+                        if (resp.save) {
+                            alert("恭喜你，执行成功！");
+                            app.hideModal();
+                            app.getUsersList(app.page.nowPage);
+                        } else {
+                            alert("对不起，执行失败！")
+                        }
+                    },
+                    err: function () {
+                        alert("系统故障，请联系管理员！");
+                    }
+                })
+            },
+            //删除
+            deleteU: function (delIds) {
+                var type = confirm("确认要删除数据吗？");
+                if (type) {
+                    $.ajax({
+                        url: '/user-delete.ajax',
+                        type: 'POST',
+                        data: {
+                            ids: delIds
+                        },
+                        dataType: 'JSON',
+                        success: function (resp) {
+                            if (resp.delete) {
+                                alert("恭喜你，删除成功！");
+                                app.getUsersList(app.page.nowPage);
+                                //删除成功后要清空集合，不然原先的ids值会一直保留
+                                app.ids  = [];
+                            } else {
+                                alert("对不起，删除失败！")
+                            }
+                        },
+                        error: function () {
+                            alert("系统故障，请联系管理员！");
+                        }
+                    });
+                }
+            },
+            //批量删除
+            delMore: function () {
+                if(this.ids.length <=0 ){
+                    alert("请选择要删除的数据！");
+                    return;
+                }
+                //注意，前端向后端传输一些关键数据时一般都用字符串；用jion将数组的各个元素拼接起来
+                var idStr = this.ids.join(",");
+                this.deleteU(idStr);
+            }
+        }
+    });
+    app.getUsersList(app.page.nowPage);
+</script>
+</body>
+</html>
